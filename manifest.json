@@ -1,0 +1,27 @@
+{
+    "name": "Klank Kaarten!",
+    "short_name": "Klank Kaarten",
+    "description": "Kaartspel voor het oefenen van Nederlandse klanken en letters",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#5C35C8",
+    "theme_color": "#5C35C8",
+    "orientation": "any",
+    "lang": "nl",
+    "categories": ["games", "kids", "education"],
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

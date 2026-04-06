@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generate PWA Icons — Klank Kaarten</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 40px; gap: 24px; }
+  h2 { color: #333; }
+  .previews { display: flex; gap: 32px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
+  .preview-box { text-align: center; }
+  canvas { border-radius: 22%; box-shadow: 0 4px 20px #0003; display: block; margin: 0 auto 8px; }
+  button { padding: 12px 28px; font-size: 16px; background: #5C35C8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+  button:hover { background: #4827A0; }
+  .note { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 16px 24px; max-width: 560px; color: #555; font-size: 14px; line-height: 1.6; }
+  code { background: #eee; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+</style>
+</head>
+<body>
+<h2>🃏 PWA Icon Generator — Klank Kaarten!</h2>
+
+<div class="note">
+  <strong>Instructions:</strong><br>
+  1. Click each download button below.<br>
+  2. Save <code>icon-192.png</code> and <code>icon-512.png</code> into this <code>icons/</code> folder.<br>
+  3. You can delete this file afterwards.
+</div>
+
+<div class="previews">
+  <div class="preview-box">
+    <canvas id="c192" width="192" height="192"></canvas>
+    <p>192 × 192 px</p>
+    <button onclick="download('c192','icon-192.png')">⬇ Download icon-192.png</button>
+  </div>
+  <div class="preview-box">
+    <canvas id="c512" width="512" height="512"></canvas>
+    <p>512 × 512 px</p>
+    <button onclick="download('c512','icon-512.png')">⬇ Download icon-512.png</button>
+  </div>
+</div>
+
+<script>
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5C35C8"/>
+      <stop offset="100%" stop-color="#C0392B"/>
+    </linearGradient>
+    <linearGradient id="card1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E1E82"/>
+      <stop offset="100%" stop-color="#180E44"/>
+    </linearGradient>
+    <linearGradient id="card2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2A2A90"/>
+      <stop offset="100%" stop-color="#1D1060"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#00000055"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)" rx="80"/>
+
+  <!-- Back card (rotated) -->
+  <rect x="90" y="110" width="200" height="280" rx="20"
+    fill="url(#card1)" stroke="rgba(255,255,255,0.3)" stroke-width="4"
+    transform="rotate(-12 190 250)" filter="url(#shadow)"/>
+
+  <!-- Middle card -->
+  <rect x="130" y="100" width="200" height="280" rx="20"
+    fill="url(#card2)" stroke="rgba(255,255,255,0.3)" stroke-width="4"
+    transform="rotate(-4 230 240)" filter="url(#shadow)"/>
+
+  <!-- Front card (face up) -->
+  <rect x="160" y="95" width="200" height="280" rx="20"
+    fill="#E83E5A" stroke="rgba(255,255,255,0.5)" stroke-width="4"
+    filter="url(#shadow)"/>
+
+  <!-- Front card inner border -->
+  <rect x="174" y="109" width="172" height="252" rx="13"
+    fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5"/>
+
+  <!-- Star on front card -->
+  <text x="260" y="240" text-anchor="middle" dominant-baseline="middle"
+    font-size="110" font-family="Arial">⭐</text>
+
+  <!-- Small text on front card -->
+  <text x="260" y="318" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="26" font-weight="bold"
+    fill="rgba(255,255,255,0.7)" letter-spacing="2">KL</text>
+</svg>`;
+
+function renderToCanvas(id) {
+  return new Promise(resolve => {
+    const canvas = document.getElementById(id);
+    const ctx    = canvas.getContext('2d');
+    const size   = canvas.width;
+    const blob   = new Blob([SVG], { type: 'image/svg+xml' });
+    const url    = URL.createObjectURL(blob);
+    const img    = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+function download(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+Promise.all([renderToCanvas('c192'), renderToCanvas('c512')]);
+</script>
+</body>
+</html>
