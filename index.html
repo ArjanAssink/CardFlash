@@ -352,6 +352,33 @@
       50%    { opacity:.32; transform:translateX(-50%) scale(.95); }
     }
 
+    /* ── UPDATE BUTTON ── */
+    #update-btn {
+      position: fixed;
+      bottom: clamp(12px, 3vw, 20px);
+      right:  clamp(12px, 3vw, 20px);
+      width:  clamp(34px, 6vw, 44px);
+      height: clamp(34px, 6vw, 44px);
+      border-radius: 50%;
+      background: rgba(255,255,255,.18);
+      border: 2px solid rgba(255,255,255,.3);
+      color: rgba(255,255,255,.55);
+      font-size: clamp(16px, 3.5vw, 22px);
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      touch-action: manipulation;
+      transition: background .15s, color .15s, transform .25s;
+    }
+    #update-btn:active {
+      background: rgba(255,255,255,.32);
+      color: #fff;
+      transform: rotate(180deg);
+    }
+
     /* ── WIN OVERLAY ── */
     #win-overlay {
       display: none;
@@ -485,6 +512,9 @@
     </div>
 
   </div><!-- #game-area -->
+
+  <!-- Lower-right corner: clear cache & reload for latest version -->
+  <button id="update-btn" onclick="hardRefresh()" title="Vernieuw app (wis cache)">⟳</button>
 
   <!-- Win overlay -->
   <div id="win-overlay">
@@ -799,6 +829,19 @@
 
       state = 'idle';
       updateProgress();
+    }
+
+    /* ── HARD REFRESH ────────────────────────────── */
+    async function hardRefresh() {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      location.reload(true);
     }
 
     /* ── INIT ─────────────────────────────────────── */
