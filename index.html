@@ -222,9 +222,9 @@
     }
 
     /* ── FRONT STYLE ── */
-    .front-style {
-      position: relative;
-    }
+    /* No position:relative — .cface already provides position:absolute which
+       also acts as containing block for the .corner children. Adding relative
+       here would override inset:0 and shrink the card to its content height. */
     .corner {
       position: absolute;
       font-size: clamp(10px, 2vw, 16px);
