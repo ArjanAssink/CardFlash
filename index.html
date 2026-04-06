@@ -511,7 +511,8 @@
 
     /* ── STATE ────────────────────────────────────── */
     let deck = [], idx = 0;
-    let state = 'idle'; // idle | animating | done
+    let state = 'idle'; // idle | done  (no 'animating' – overlapping flips allowed)
+    let inFlight = 0;   // cards currently mid-air
     let elapsed = 0, timerOn = false, timerID = null;
     let audioCtx = null;
 
@@ -525,9 +526,6 @@
     const discardTop  = document.getElementById('discard-top');
     const discardEmp  = document.getElementById('discard-empty');
     const discardLbl  = document.getElementById('discard-label');
-    const flyWrap     = document.getElementById('fly-wrap');
-    const flyInner    = document.getElementById('fly-inner');
-    const flyFront    = document.getElementById('fly-front');
     const backCount   = document.getElementById('back-count');
     const tapHint     = document.getElementById('tap-hint');
 
@@ -643,59 +641,76 @@
       return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
     }
 
+    /* ── BUILD DYNAMIC FLY CARD ──────────────────── */
+    function mkFlyCard(card) {
+      const wrap = document.createElement('div');
+      wrap.className = 'fly-card-anim';
+      wrap.style.cssText = 'position:absolute;pointer-events:none;z-index:50;perspective:1300px;width:var(--cw);height:var(--ch);';
+
+      const inner = document.createElement('div');
+      inner.style.cssText = 'width:100%;height:100%;position:relative;transform-style:preserve-3d;';
+
+      const back = document.createElement('div');
+      back.className = 'cface back-style';
+      back.style.cssText = 'backface-visibility:hidden;-webkit-backface-visibility:hidden;';
+      back.innerHTML = '<span class="back-star">⭐</span><span class="back-brand">Klank Kaarten</span>';
+
+      const front = document.createElement('div');
+      front.className = 'cface front-style';
+      front.style.cssText = 'backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:rotateY(180deg);';
+      front.innerHTML = `<div class="corner c-tl">${card.abbr}</div><div class="corner c-tr">✦</div><div class="sound-text"></div><div class="cat-label">${card.name}</div><div class="corner c-bl">✦</div><div class="corner c-br">${card.abbr}</div>`;
+      front.style.background = `linear-gradient(148deg,${card.c1} 0%,${card.c2} 100%)`;
+      const sEl = front.querySelector('.sound-text');
+      sEl.textContent = card.sound;
+      soundSize(card.sound, sEl);
+
+      inner.appendChild(back);
+      inner.appendChild(front);
+      wrap.appendChild(inner);
+      return { wrap, inner };
+    }
+
     /* ── FLIP ─────────────────────────────────────── */
     function flip() {
-      if (state !== 'idle') return;
+      if (state === 'done' || idx >= deck.length) return;
       startTimer();
-      state = 'animating';
 
       const card = deck[idx];
-
-      // Tap-press feedback on deck top
-      deckTop.classList.add('pressed');
-      setTimeout(()=>deckTop.classList.remove('pressed'), 150);
-
-      // Populate fly card faces
-      document.getElementById('fly-back').querySelector('.back-star').textContent = '⭐';
-      const ff = document.getElementById('fly-front');
-      setFront(ff, card);
-
-      // Get positions relative to game-area
-      const areaR   = gameArea.getBoundingClientRect();
-      const deckR   = deckEl.getBoundingClientRect();
-      const disR    = discardEl.getBoundingClientRect();
-
-      const sx = deckR.left - areaR.left;
-      const sy = deckR.top  - areaR.top;
-      const ex = disR.left  - areaR.left;
-      const ey = disR.top   - areaR.top;
-
-      // Place fly-wrap exactly over deck
-      flyWrap.style.left      = sx + 'px';
-      flyWrap.style.top       = sy + 'px';
-      flyWrap.style.transform = 'translate(0,0)';
-      flyInner.style.transform = 'rotateY(0deg)';
-      flyWrap.style.display   = 'block';
-
-      // Advance deck state immediately (so deck shows "next" or empty)
       idx++;
+      inFlight++;
+
+      // Deck press feedback
+      deckTop.classList.add('pressed');
+      setTimeout(() => deckTop.classList.remove('pressed'), 150);
+
+      // Update deck display immediately
       const remaining = deck.length - idx;
       backCount.textContent = remaining;
       if (remaining <= 0) {
-        deckTop.style.display  = 'none';
+        deckTop.style.display   = 'none';
         deckEmpty.style.display = 'flex';
-        tapHint.style.display  = 'none';
+        tapHint.style.display   = 'none';
       } else {
         updateDeckGhosts(remaining);
       }
       updateProgress();
 
-      // Animate
-      const DUR     = 360;     // ms – total duration
-      const ARC     = 55;      // px – arc height
-      const dx      = ex - sx;
-      const dy      = ey - sy;
-      const start   = performance.now();
+      // Create a fresh fly-card element for this flip
+      const { wrap, inner } = mkFlyCard(card);
+      gameArea.appendChild(wrap);
+
+      const areaR = gameArea.getBoundingClientRect();
+      const deckR  = deckEl.getBoundingClientRect();
+      const disR   = discardEl.getBoundingClientRect();
+      const sx = deckR.left - areaR.left, sy = deckR.top - areaR.top;
+      const ex = disR.left  - areaR.left, ey = disR.top  - areaR.top;
+      const dx = ex - sx, dy = ey - sy;
+
+      wrap.style.left = sx + 'px';
+      wrap.style.top  = sy + 'px';
+
+      const DUR = 360, ARC = 55;
+      const start = performance.now();
       let chimeDone = false;
 
       playFlip();
@@ -703,44 +718,32 @@
       function step(now) {
         const raw = Math.min((now - start) / DUR, 1);
         const e   = easeInOut(raw);
-
-        // Arc: parabola peaking at midpoint
         const arc = -ARC * 4 * raw * (1 - raw);
-
-        flyWrap.style.transform = `translate(${dx*e}px,${dy*e+arc}px)`;
-        flyInner.style.transform = `rotateY(${-180*e}deg)`;
-
-        // Chime when card is edge-on (halfway flipped)
+        wrap.style.transform  = `translate(${dx*e}px,${dy*e+arc}px)`;
+        inner.style.transform = `rotateY(${-180*e}deg)`;
         if (!chimeDone && raw >= .5) { chimeDone = true; playChime(); }
-
-        if (raw < 1) {
-          requestAnimationFrame(step);
-        } else {
-          onLanded(card);
-        }
+        if (raw < 1) requestAnimationFrame(step);
+        else onLanded(card, wrap);
       }
       requestAnimationFrame(step);
     }
 
     /* ── CARD LANDED ──────────────────────────────── */
-    function onLanded(card) {
-      flyWrap.style.display = 'none';
+    function onLanded(card, flyEl) {
+      inFlight--;
+      flyEl.remove();
 
-      // Update discard top
       setFront(discardTop, card);
       discardTop.style.display = 'flex';
       discardEmp.style.display = 'none';
-      // Shine effect
       discardTop.classList.remove('shine');
       void discardTop.offsetWidth;
       discardTop.classList.add('shine');
-
       updateDiscardGhosts(idx);
 
-      if (idx >= deck.length) {
+      // Game ends only when every card has been initiated AND every one has landed
+      if (idx >= deck.length && inFlight === 0) {
         setTimeout(gameOver, 200);
-      } else {
-        state = 'idle';
       }
     }
 
@@ -772,6 +775,10 @@
 
     /* ── RESTART ──────────────────────────────────── */
     function restart() {
+      // Drop any cards still mid-air
+      gameArea.querySelectorAll('.fly-card-anim').forEach(el => el.remove());
+      inFlight = 0;
+
       deck = shuffle(MASTER); idx=0; elapsed=0; timerOn=false;
       clearInterval(timerID);
 
@@ -811,9 +818,9 @@
       // Unlock AudioContext on first touch (iOS)
       document.addEventListener('touchstart', ()=>{ try{ ac(); }catch(e){} }, { once:true, passive:true });
 
-      // Resize: recalc font sizes
+      // Resize: recalc font size of the last-landed discard card
       window.addEventListener('resize', ()=>{
-        if (state==='idle' && idx>0) {
+        if (idx > 0) {
           const s = document.getElementById('dt-sound');
           if (s) soundSize(s.textContent, s);
         }
